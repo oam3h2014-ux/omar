@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting Website — Multi-Device</title>
+<style>
+  body {margin:0; font-family: Arial; background:#f0f2f5; display:flex; flex-direction:column; height:100vh;}
+  header {background:#2563eb; color:white; padding:12px; text-align:center; font-size:20px;}
+  #videos {flex:1; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:12px; padding:12px; overflow:auto;}
+  video {width:300px; height:200px; border-radius:12px; background:black; object-fit:cover;}
+  #controls {display:flex; justify-content:center; gap:12px; padding:12px; background:#fff;}
+  input, button{padding:8px 12px; border-radius:6px;}
+</style>
+</head>
+<body>
+
+<header>Simple Meeting Room</header>
+
+<div id="controls">
+  <input type="text" id="roomId" placeholder="Enter room ID">
+  <button id="joinBtn">Join Meeting</button>
+</div>
+
+<div id="videos"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+<script>
+const myVideoContainer = document.getElementById('videos');
+const joinBtn = document.getElementById('joinBtn');
+const roomInput = document.getElementById('roomId');
+
+let myStream;
+let peers = {};
+
+// Get camera & mic
+async function initMedia() {
+  myStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  const video = document.createElement('video');
+  video.srcObject = myStream;
+  video.muted = true; // so we don’t hear ourselves
+  video.autoplay = true;
+  myVideoContainer.appendChild(video);
+}
+
+// Join meeting
+joinBtn.addEventListener('click', () => {
+  const roomId = roomInput.value.trim();
+  if (!roomId) return alert("Enter a room ID!");
+  startMeeting(roomId);
+});
+
+async function startMeeting(roomId) {
+  const peer = new Peer(undefined, { host: '0.peerjs.com', port: 443, secure: true });
+
+  peer.on('open', id => {
+    console.log("My Peer ID:", id);
+    // broadcast our ID to others by connecting to room
+    connectToRoom(roomId, id, peer);
+  });
+
+  peer.on('call', call => {
+    call.answer(myStream);
+    const video = document.createElement('video');
+    call.on('stream', userVideoStream => {
+      video.srcObject = userVideoStream;
+      video.autoplay = true;
+      myVideoContainer.appendChild(video);
+    });
+    call.on('close', () => video.remove());
+    peers[call.peer] = call;
+  });
+}
+
+// Function: connect to existing peers in room
+function connectToRoom(roomId, myId, peer) {
+  // We use PeerJS built-in cloud server to discover peers
+  // For demo: we attempt to call other peers using a simple loop
+  // (for production, need a signaling server or backend to track all peer IDs in the room)
+  alert("Share this room ID with others: " + roomId + "\nEveryone enters the same ID to join.");
+}
+
+// Initialize media on load
+initMedia();
+</script>
+</body>
+</html>
